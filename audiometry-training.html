@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audiometry Training Simulator</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #596579;
+      --line: #d7deea;
+      --blue: #2056a8;
+      --pale: #f3f6fb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #eef2f8;
+      color: var(--ink);
+      font: 16px/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
+    }
+    main { max-width: 1050px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { margin: 0 0 4px; font-size: clamp(1.6rem, 3vw, 2.2rem); }
+    h2 { margin: 0 0 12px; font-size: 1.15rem; }
+    p { margin: 8px 0; }
+    .intro, .panel, .notice {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      margin: 14px 0;
+    }
+    .muted { color: var(--muted); }
+    .notice { border-left: 5px solid #d38b00; background: #fffaf0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+    label { display: block; font-weight: 650; margin: 0 0 6px; }
+    select, input[type="range"], button { width: 100%; }
+    select, button {
+      font: inherit;
+      border: 1px solid #aeb9ca;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: white;
+      color: var(--ink);
+    }
+    input[type="range"] { accent-color: var(--blue); }
+    button { cursor: pointer; font-weight: 650; }
+    button:hover { filter: brightness(.97); }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    .primary { color: white; background: var(--blue); border-color: var(--blue); }
+    .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+    .value { font-size: 1.3rem; font-weight: 750; }
+    .status { min-height: 28px; margin-top: 10px; font-weight: 650; }
+    .chart-wrap { overflow-x: auto; }
+    svg { display: block; min-width: 600px; width: 100%; height: auto; background: white; }
+    .key { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 10px; color: var(--muted); }
+    .key span { display: inline-flex; align-items: center; gap: 7px; }
+    .key i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 50%; }
+    .key .left i { border-color: #c33b43; }
+    .key .right i { border-color: #2363bd; }
+    .small { font-size: .9rem; }
+    .case-info { padding: 10px 12px; border-radius: 8px; background: var(--pale); }
+    @media (max-width: 550px) { main { padding: 14px 10px 32px; } .panel, .intro, .notice { padding: 14px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header class="intro">
+    <h1>Audiometry Training Simulator</h1>
+    <p class="muted">Practice presenting tones, recording simulated patient responses, and interpreting an audiogram.</p>
+  </header>
+
+  <aside class="notice">
+    <strong>Educational use only.</strong>
+    This is not a calibrated audiometer or a medical diagnostic tool. Browser audio cannot produce verified dB HL levels; the displayed levels and patient responses are simulated.
+  </aside>
+
+  <section class="panel">
+    <h2>1. Select a case</h2>
+    <div class="grid">
+      <div>
+        <label for="caseSelect">Simulated patient profile</label>
+        <select id="caseSelect">
+          <option value="normal">Case 1 — Typical hearing sensitivity</option>
+          <option value="conductive">Case 2 — Right conductive pattern</option>
+          <option value="high">Case 3 — Bilateral high-frequency loss</option>
+          <option value="sensorineural">Case 4 — Bilateral sensorineural pattern</option>
+          <option value="mixed">Case 5 — Left mixed pattern</option>
+        </select>
+      </div>
+      <div class="case-info">
+        <strong>Training task</strong>
+        <div class="small muted">Estimate the lowest level at which the simulated patient responds “heard” at each frequency. Reveal the case afterward to compare your work.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>2. Present a tone</h2>
+    <div class="grid">
+      <div>
+        <label for="earSelect">Test ear</label>
+        <select id="earSelect">
+          <option value="right">Right ear</option>
+          <option value="left">Left ear</option>
+        </select>
+      </div>
+      <div>
+        <label for="freqSelect">Frequency</label>
+        <select id="freqSelect">
+          <option value="250">250 Hz</option>
+          <option value="500">500 Hz</option>
+          <option value="1000" selected>1000 Hz</option>
+          <option value="2000">2000 Hz</option>
+          <option value="4000">4000 Hz</option>
+          <option value="8000">8000 Hz</option>
+        </select>
+      </div>
+      <div>
+        <label for="level">Simulated presentation level: <span id="levelLabel">40</span> dB HL</label>
+        <input id="level" type="range" min="-10" max="110" step="5" value="40">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="presentBtn">Present tone</button>
+      <button id="heardBtn" disabled>Patient heard</button>
+      <button id="notHeardBtn" disabled>Patient did not hear</button>
+      <button id="recordBtn">Record estimate at this level</button>
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite">Present a tone to begin.</div>
+    <p class="small muted">The tone is optional and played at a safe, low browser volume. The simulated response is determined by the selected case, not by your actual hearing.</p>
+  </section>
+
+  <section class="panel">
+    <h2>3. Your audiogram</h2>
+    <p class="small muted">Use “Record estimate at this level” to place a point for the selected ear and frequency. The point is your current estimate, not the hidden case threshold.</p>
+    <div class="chart-wrap">
+      <svg id="chart" viewBox="0 0 760 390" role="img" aria-label="Audiogram showing recorded threshold estimates"></svg>
+    </div>
+    <div class="key">
+      <span class="right"><i></i> Right ear (O)</span>
+      <span class="left"><i></i> Left ear (X)</span>
+    </div>
+    <div class="actions">
+      <button id="revealBtn">Reveal case thresholds</button>
+      <button id="resetBtn">Reset training</button>
+    </div>
+    <div id="reveal" class="status" aria-live="polite"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Learning notes</h2>
+    <ul>
+      <li>Audiograms conventionally place frequency on the horizontal axis and hearing level on the vertical axis, with more hearing loss lower on the chart.</li>
+      <li>Air-conduction thresholds alone do not establish the type or cause of a hearing loss. Clinical assessment may also use bone conduction, masking, and other tests.</li>
+      <li>In practice, threshold-finding protocols use repeated responses and carefully controlled equipment. This simulator simplifies that process for learning.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+(() => {
+  const frequencies = [250, 500, 1000, 2000, 4000, 8000];
+  const profiles = {
+    normal: {
+      right: [5, 5, 5, 5, 10, 10],
+      left:  [5, 5, 5, 5, 10, 10]
+    },
+    conductive: {
+      right: [35, 35, 40, 35, 30, 30],
+      left:  [5, 5, 10, 5, 10, 10]
+    },
+    high: {
+      right: [5, 10, 10, 20, 45, 60],
+      left:  [5, 10, 15, 25, 50, 65]
+    },
+    sensorineural: {
+      right: [25, 30, 35, 40, 45, 50],
+      left:  [30, 35, 35, 40, 45, 55]
+    },
+    mixed: {
+      right: [5, 5, 10, 10, 10, 15],
+      left:  [45, 50, 55, 60, 65, 70]
+    }
+  };
+
+  const level = document.getElementById("level");
+  const levelLabel = document.getElementById("levelLabel");
+  const caseSelect = document.getElementById("caseSelect");
+  const earSelect = document.getElementById("earSelect");
+  const freqSelect = document.getElementById("freqSelect");
+  const status = document.getElementById("status");
+  const reveal = document.getElementById("reveal");
+  const heardBtn = document.getElementById("heardBtn");
+  const notHeardBtn = document.getElementById("notHeardBtn");
+  const chart = document.getElementById("chart");
+
+  let pending = false;
+  let estimates = { right: {}, left: {} };
+  let audioContext;
+
+  level.addEventListener("input", () => levelLabel.textContent = level.value);
+
+  function threshold(ear, freq) {
+    const index = frequencies.indexOf(Number(freq));
+    return profiles[caseSelect.value][ear][index];
+  }
+
+  function playTone(freq) {
+    try {
+      audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === "suspended") audioContext.resume();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = Number(freq);
+      gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.035, audioContext.currentTime + 0.04);
+      gain.gain.setValueAtTime(0.035, audioContext.currentTime + 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.42);
+      oscillator.connect(gain).connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.43);
+    } catch (e) {
+      // Audio may be unavailable; simulated responses still work.
+    }
+  }
+
+  document.getElementById("presentBtn").addEventListener("click", () => {
+    const ear = earSelect.value;
+    const freq = Number(freqSelect.value);
+    const currentLevel = Number(level.value);
+    playTone(freq);
+    pending = true;
+    heardBtn.disabled = false;
+    notHeardBtn.disabled = false;
+    status.textContent = `Tone presented: ${freq} Hz at simulated ${currentLevel} dB HL in the ${ear} ear. Ask the simulated patient to respond.`;
+  });
+
+  function recordResponse(reportedHeard) {
+    if (!pending) return;
+    pending = false;
+    heardBtn.disabled = true;
+    notHeardBtn.disabled = true;
+
+    const ear = earSelect.value;
+    const freq = Number(freqSelect.value);
+    const currentLevel = Number(level.value);
+    const trueThreshold = threshold(ear, freq);
+    const heard = currentLevel > trueThreshold + 5 ? true
+      : currentLevel < trueThreshold - 5 ? false
+      : Math.random() < 0.65;
+
+    const isCorrect = heard === reportedHeard;
+    status.textContent = `Simulated patient: ${heard ? "heard" : "did not hear"} the tone. Your response was ${isCorrect ? "consistent" : "not consistent"} with the simulated patient.`;
+  }
+
+  heardBtn.addEventListener("click", () => recordResponse(true));
+  notHeardBtn.addEventListener("click", () => recordResponse(false));
+
+  document.getElementById("recordBtn").addEventListener("click", () => {
+    const ear = earSelect.value;
+    const freq = Number(freqSelect.value);
+    estimates[ear][freq] = Number(level.value);
+    drawChart(false);
+    status.textContent = `Recorded your ${ear}-ear estimate of ${level.value} dB HL at ${freq} Hz.`;
+  });
+
+  function drawChart(showTruth) {
+    const W = 760, H = 390;
+    const left = 74, right = 28, top = 28, bottom = 65;
+    const plotW = W - left - right, plotH = H - top - bottom;
+    const x = i => left + i * (plotW / (frequencies.length - 1));
+    const y = db => top + (db / 120) * plotH;
+    let out = `<rect width="${W}" height="${H}" fill="white"/>`;
+
+    for (let db = 0; db <= 120; db += 10) {
+      out += `<line x1="${left}" y1="${y(db)}" x2="${W-right}" y2="${y(db)}" stroke="#dce2eb"/>`;
+      out += `<text x="${left-12}" y="${y(db)+5}" text-anchor="end" font-size="12" fill="#435066">${db}</text>`;
+    }
+    frequencies.forEach((f, i) => {
+      out += `<line x1="${x(i)}" y1="${top}" x2="${x(i)}" y2="${H-bottom}" stroke="#edf0f5"/>`;
+      out += `<text x="${x(i)}" y="${H-bottom+22}" text-anchor="middle" font-size="12" fill="#435066">${f}</text>`;
+    });
+    out += `<text x="20" y="${top + plotH/2}" transform="rotate(-90 20 ${top + plotH/2})" text-anchor="middle" font-size="13" fill="#263348">Simulated hearing level (dB HL)</text>`;
+    out += `<text x="${left + plotW/2}" y="${H-12}" text-anchor="middle" font-size="13" fill="#263348">Frequency (Hz)</text>`;
+
+    for (const ear of ["right", "left"]) {
+      const color = ear === "right" ? "#2363bd" : "#c33b43";
+      const values = frequencies.map(f => showTruth ? threshold(ear, f) : estimates[ear][f]);
+      const points = values.map((v, i) => v == null ? null : `${x(i)},${y(v)}`).filter(Boolean);
+      if (points.length > 1) out += `<polyline points="${points.join(" ")}" fill="none" stroke="${color}" stroke-width="2"/>`;
+      values.forEach((v, i) => {
+        if (v == null) return;
+        const shape = ear === "right"
+          ? `<circle cx="${x(i)}" cy="${y(v)}" r="6" fill="white" stroke="${color}" stroke-width="2.5"/>`
+          : `<path d="M ${x(i)-5} ${y(v)-5} L ${x(i)+5} ${y(v)+5} M ${x(i)+5} ${y(v)-5} L ${x(i)-5} ${y(v)+5}" stroke="${color}" stroke-width="2.5"/>`;
+        out += shape;
+      });
+    }
+    chart.innerHTML = out;
+  }
+
+  document.getElementById("revealBtn").addEventListener("click", () => {
+    drawChart(true);
+    reveal.textContent = "The chart now shows the simulated case thresholds. Compare them with your recorded estimates.";
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    estimates = { right: {}, left: {} };
+    pending = false;
+    heardBtn.disabled = true;
+    notHeardBtn.disabled = true;
+    reveal.textContent = "";
+    status.textContent = "Training reset. Present a tone to begin.";
+    drawChart(false);
+  });
+
+  caseSelect.addEventListener("change", () => {
+    estimates = { right: {}, left: {} };
+    reveal.textContent = "";
+    status.textContent = "New case selected. Present a tone to begin.";
+    drawChart(false);
+  });
+
+  drawChart(false);
+})();
+</script>
+</body>
+</html>
